@@ -94,7 +94,7 @@ jobs:
                   { role: "user", content: prompt }
                 ],
                 temperature: 0.7,
-                max_tokens: 3000
+                max_completion_tokens: 3000
               });
 
               const html = res.choices[0].message.content || "<h1>生成失败</h1>";
