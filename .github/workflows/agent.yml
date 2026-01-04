@@ -125,28 +125,17 @@ jobs:
         run: |
           git push origin "$BRANCH" --force
 
-      # ✅ 用 GitHub API 创建 PR（关键）
-      - name: Create Pull Request
-        uses: actions/github-script@v7
+      - name: Create or Update Pull Request
+        uses: peter-evans/create-pull-request@v6
         with:
-          script: |
-            const prs = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              head: context.repo.owner + ":" + process.env.BRANCH,
-              state: "open"
-            });
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: ${{ env.BRANCH }}
+          title: "🤖 AI Agent PR"
+          body: |
+            Agent completed one iteration.
+            Review and reply `@agent merge`.
 
-            if (prs.data.length === 0) {
-              await github.rest.pulls.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: "🤖 AI Agent PR",
-                head: process.env.BRANCH,
-                base: "main",
-                body: "Agent completed one iteration. Review and reply `@agent merge`."
-              });
-            }
 
       - name: Auto merge
         if: contains(github.event.comment.body, '@agent merge')
