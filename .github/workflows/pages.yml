@@ -23,6 +23,11 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Ensure docs exists
+        run: |
+          mkdir -p docs
+          test -f docs/index.html || echo "<h1>Empty</h1>" > docs/index.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
