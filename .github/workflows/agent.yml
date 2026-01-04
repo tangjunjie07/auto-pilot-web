@@ -6,6 +6,7 @@ on:
 
 jobs:
   agent:
+    if: contains(github.event.comment.body, '@agent')
     runs-on: ubuntu-latest
 
     permissions:
@@ -27,13 +28,6 @@ jobs:
           BRANCH=agent/issue-${{ github.event.issue.number }}
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           git checkout -B "$BRANCH"
-
-      - name: Check for @agent
-        run: |
-          if [[ "${{ github.event.comment.body }}" != *"@agent"* ]]; then
-            echo "No @agent found, skipping."
-            exit 0
-          fi
 
       - name: Install dependencies
         run: npm install node-fetch@2
