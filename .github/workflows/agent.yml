@@ -73,8 +73,9 @@ jobs:
         run: |
           node <<'EOF'
           const fs = require("fs");
-          const path = "docs/index.html";
-          fs.mkdirSync("docs", { recursive: true });
+          const path = require("path");
+          const filePath = path.join(process.cwd(), "docs", "index.html");
+          fs.mkdirSync(path.dirname(filePath), { recursive: true });
           const html = `<!doctype html>
           <html lang="en">
           <head>
@@ -88,9 +89,10 @@ jobs:
           </html>`;
 
           fs.writeFileSync(
-            path,
+            filePath,
             html
           );
+          console.log("docs/index.html generated at", filePath);
           EOF
           
       # 🔍 调试（非常重要）
@@ -105,7 +107,7 @@ jobs:
           git config user.name "AI Agent"
           git config user.email "agent@github.com"
           git add docs/index.html
-          git commit -m "AI Agent: create/update docs/index.html"
+          git commit -m "AI Agent: create/update docs/index.html" || echo "No changes"
 
       - name: Push branch
         run: |
