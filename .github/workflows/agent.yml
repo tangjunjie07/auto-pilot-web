@@ -93,7 +93,6 @@ jobs:
                   { role: "system", content: "你是网页生成 AI，根据用户指令生成完整 HTML 页面。" },
                   { role: "user", content: prompt }
                 ],
-                temperature: 0.7,
                 max_completion_tokens: 3000
               });
 
