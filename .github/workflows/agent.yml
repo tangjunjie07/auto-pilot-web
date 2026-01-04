@@ -79,6 +79,7 @@ jobs:
           const fs = require("fs");
           const path = require("path");
           const OpenAI = require("openai").default;
+          const { execSync } = require("child_process");
 
           const prompt = process.env.AGENT_PROMPT || "生成 HTML 页面";
           const filePath = path.join(process.cwd(), "docs", "main.html");
