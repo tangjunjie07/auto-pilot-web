@@ -95,13 +95,6 @@ jobs:
           console.log("docs/index.html generated at", filePath);
           EOF
           
-      # 🔍 调试（非常重要）
-      - name: Debug docs
-        run: |
-          echo "PWD: $(pwd)"
-          ls -l docs
-          cat docs/index.html
-          
       - name: Commit changes
         run: |
           git config user.name "AI Agent"
@@ -118,7 +111,7 @@ jobs:
 
 
       - name: Create or Update Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           base: main
@@ -127,6 +120,8 @@ jobs:
           body: |
             Agent completed one iteration.
             Review and reply `@agent merge`.
+          allow-no-changes: true    # ⚡ 强制创建 PR 即使 diff 为 0
+
 
 
       - name: Auto merge
