@@ -26,7 +26,7 @@ jobs:
       - name: Ensure docs exists
         run: |
           mkdir -p docs
-          test -f docs/index.html || echo "<h1>Empty</h1>" > docs/index.html
+          test -f docs/main.html || echo "<h1>Empty</h1>" > docs/main.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
