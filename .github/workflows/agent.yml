@@ -1,0 +1,51 @@
+name: AI Agent (Cline)
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Cline
+        run: |
+          npm install -g @cline/cli
+
+      - name: Extract Issue Prompt
+        id: prompt
+        run: |
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            echo "PROMPT<<EOF" >> $GITHUB_ENV
+            echo "${{ github.event.issue.body }}" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "PROMPT<<EOF" >> $GITHUB_ENV
+            echo "${{ github.event.comment.body }}" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
+
+      - name: Run Cline Agent
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          cline run \
+            --prompt "$PROMPT" \
+            --auto-approve \
+            --commit \
+            --model gpt-4.1
