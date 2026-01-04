@@ -118,11 +118,14 @@ jobs:
           git add docs/index.html
           git commit -m "AI Agent: create docs/index.html" || true
 
-      - run: git push origin "$BRANCH"
+      - name: Push branch
+        run: git push origin "$BRANCH" --force-with-lease
 
-      - uses: peter-evans/create-pull-request@v6
+      - name: Create or Update Pull Request
+        uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
           branch: ${{ env.BRANCH }}
           title: "🤖 AI Agent PR"
           body: "Agent completed one iteration. Review and reply `@agent merge`."
