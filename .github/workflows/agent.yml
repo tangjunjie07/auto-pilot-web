@@ -1,22 +1,25 @@
-name: AI Agent (Cline)
+name: AI Agent (Cline PR Mode + Multi-turn)
 
 on:
-  issues:
-    types: [opened]
   issue_comment:
     types: [created]
 
 jobs:
   agent:
+    # 只响应 @agent
+    if: contains(github.event.comment.body, '@agent')
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
+      pull-requests: write
       issues: write
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -24,28 +27,108 @@ jobs:
           node-version: 20
 
       - name: Install Cline
-        run: |
-          npm install -g @cline/cli
+        run: npm install -g @cline/cli
 
-      - name: Extract Issue Prompt
+      # 🌿 固定 Agent 工作分支（多轮对话关键）
+      - name: Prepare branch
+        run: |
+          echo "BRANCH=agent/issue-${{ github.event.issue.number }}" >> $GITHUB_ENV
+          git checkout -B agent/issue-${{ github.event.issue.number }}
+
+      # 🧠 构建多轮对话 Prompt（Issue + Comment 历史）
+      - name: Build conversation prompt
         id: prompt
-        run: |
-          if [ "${{ github.event_name }}" = "issues" ]; then
-            echo "PROMPT<<EOF" >> $GITHUB_ENV
-            echo "${{ github.event.issue.body }}" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
-          else
-            echo "PROMPT<<EOF" >> $GITHUB_ENV
-            echo "${{ github.event.comment.body }}" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
-          fi
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
 
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            let prompt = `【Issue 描述】\n${issue.data.title}\n\n${issue.data.body || ''}\n\n`;
+            prompt += `【历史对话】\n`;
+
+            // 只取最近 10 条，防止 prompt 过长
+            const recentComments = comments.data.slice(-10);
+
+            for (const c of recentComments) {
+              if (c.body.includes('@agent')) {
+                prompt += `User: ${c.body}\n`;
+              }
+              if (c.user.type === 'Bot' && c.body.includes('AI Agent')) {
+                prompt += `Agent: ${c.body}\n`;
+              }
+            }
+
+            prompt += `\n【当前指令】\n${context.payload.comment.body}`;
+
+            core.setOutput('prompt', prompt);
+
+      # 🤖 运行 Cline Agent（受限目录 + 多轮上下文）
       - name: Run Cline Agent
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           cline run \
-            --prompt "$PROMPT" \
+            --prompt "${{ steps.prompt.outputs.prompt }}" \
             --auto-approve \
             --commit \
-            --model gpt-4.1
+            --model claude-3.5-sonnet \
+            --allowed-paths src/,tests/,docs/ \
+            --deny-paths .github/,infra/,scripts/
+
+      - name: Push branch
+        run: git push origin $BRANCH
+
+      # 🔀 创建 / 更新 PR（同一个 PR 多轮更新）
+      - name: Create or Update Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ env.BRANCH }}
+          title: "🤖 AI Agent: Issue #${{ github.event.issue.number }}"
+          body: |
+            ## 🤖 AI Agent 自动修改完成（支持多轮对话）
+
+            **当前指令**
+            ```
+            ${{ github.event.comment.body }}
+            ```
+
+            **改动范围限制**
+            - ✅ src/
+            - ✅ tests/
+            - ✅ docs/
+            - ❌ .github/
+            - ❌ infra/
+            - ❌ scripts/
+
+            请 Review 👇
+
+      # 💬 Agent 主动回 Issue（像真人一样汇报）
+      - name: Comment back to Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body =
+              "🤖 **AI Agent 已完成一轮任务**\n\n" +
+              "- 🔀 PR 已创建 / 更新\n" +
+              `- 🌿 分支：${process.env.BRANCH}\n` +
+              "- 🧠 已读取历史对话上下文\n" +
+              "- 📦 改动已限制在指定目录\n\n" +
+              "👉 如需继续，请在本 Issue 中再次 @agent 下达指令";
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
