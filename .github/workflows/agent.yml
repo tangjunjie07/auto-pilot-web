@@ -1,4 +1,4 @@
-name: AI Agent (Cline PR Mode + Multi-turn)
+name: AI Agent (Inline JS + Multi-turn + PR)
 
 on:
   issue_comment:
@@ -6,7 +6,6 @@ on:
 
 jobs:
   agent:
-    # 只响应 @agent
     if: contains(github.event.comment.body, '@agent')
     runs-on: ubuntu-latest
 
@@ -16,26 +15,21 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install Cline
-        run: npm install -g @cline/cli
-
-      # 🌿 固定 Agent 工作分支（多轮对话关键）
       - name: Prepare branch
         run: |
-          echo "BRANCH=agent/issue-${{ github.event.issue.number }}" >> $GITHUB_ENV
-          git checkout -B agent/issue-${{ github.event.issue.number }}
+          BRANCH=agent/issue-${{ github.event.issue.number }}
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          git checkout -B "$BRANCH"
 
-      # 🧠 构建多轮对话 Prompt（Issue + Comment 历史）
+      # 🧠 构建多轮 Prompt（⚠️ 无模板字符串）
       - name: Build conversation prompt
         id: prompt
         uses: actions/github-script@v7
@@ -44,124 +38,112 @@ jobs:
             const issue = await github.rest.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: context.issue.number
             });
 
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: context.issue.number
             });
 
-            let prompt = `【Issue 描述】\n${issue.data.title}\n\n${issue.data.body || ''}\n\n`;
-            prompt += `【历史对话】\n`;
+            let prompt = "【Issue 描述】\n";
+            prompt += issue.data.title + "\n\n";
+            prompt += (issue.data.body || "") + "\n\n";
+            prompt += "【历史对话】\n";
 
-            // 只取最近 10 条，防止 prompt 过长
-            const recentComments = comments.data.slice(-10);
-
-            for (const c of recentComments) {
-              if (c.body.includes('@agent')) {
-                prompt += `User: ${c.body}\n`;
+            comments.data.slice(-10).forEach(c => {
+              if (c.body.includes("@agent")) {
+                prompt += "User: " + c.body + "\n";
               }
-              if (c.user.type === 'Bot' && c.body.includes('AI Agent')) {
-                prompt += `Agent: ${c.body}\n`;
+              if (c.user.type === "Bot" && c.body.includes("AI Agent")) {
+                prompt += "Agent: " + c.body + "\n";
               }
-            }
+            });
 
-            prompt += `\n【当前指令】\n${context.payload.comment.body}`;
+            prompt += "\n【当前指令】\n";
+            prompt += context.payload.comment.body;
 
-            core.setOutput('prompt', prompt);
+            core.setOutput("prompt", prompt);
 
-      # 🤖 运行 Cline Agent（受限目录 + 多轮上下文）
-      - name: Run Cline Agent
+      # 🤖 Inline Agent（完全 YAML-safe）
+      - name: Run Inline Agent
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AGENT_PROMPT: ${{ steps.prompt.outputs.prompt }}
         run: |
-          cline run \
-            --prompt "${{ steps.prompt.outputs.prompt }}" \
-            --auto-approve \
-            --commit \
-            --model claude-3.5-sonnet \
-            --allowed-paths src/,tests/,docs/ \
-            --deny-paths .github/,infra/,scripts/
+          node <<'EOF'
+          import fs from "fs";
 
-      - name: Push branch
-        run: git push origin $BRANCH
+          const prompt = process.env.AGENT_PROMPT || "";
 
-      # 🔀 创建 / 更新 PR（同一个 PR 多轮更新）
-      - name: Create or Update Pull Request
-        uses: peter-evans/create-pull-request@v6
+          if (!prompt.includes("docs/index.html")) {
+            console.log("No action needed");
+            process.exit(0);
+          }
+
+          fs.mkdirSync("docs", { recursive: true });
+
+          fs.writeFileSync(
+            "docs/index.html",
+            "<!doctype html>\n" +
+            "<html lang=\"en\">\n" +
+            "<head>\n" +
+            "  <meta charset=\"utf-8\" />\n" +
+            "  <title>SecureX</title>\n" +
+            "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n" +
+            "  <style>\n" +
+            "    body { margin:0; font-family:system-ui; background:#0b0f19; color:#e5e7eb; }\n" +
+            "    header { padding:64px; text-align:center; }\n" +
+            "    .card { background:#111827; border-radius:16px; padding:40px; max-width:900px; margin:32px auto; }\n" +
+            "    .accent { color:#38bdf8; }\n" +
+            "  </style>\n" +
+            "</head>\n" +
+            "<body>\n" +
+            "  <header>\n" +
+            "    <h1>Hello <span class=\"accent\">Agent</span></h1>\n" +
+            "    <p>Enterprise-grade encrypted infrastructure</p>\n" +
+            "  </header>\n" +
+            "  <div class=\"card\">Security-first platform</div>\n" +
+            "</body>\n" +
+            "</html>\n"
+          );
+
+          console.log("docs/index.html generated");
+          EOF
+
+      - name: Commit
+        run: |
+          git config user.name "AI Agent"
+          git config user.email "agent@github.com"
+          git add docs/index.html
+          git commit -m "AI Agent: create docs/index.html" || true
+
+      - run: git push origin "$BRANCH"
+
+      - uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ env.BRANCH }}
-          title: "🤖 AI Agent: Issue #${{ github.event.issue.number }}"
-          body: |
-            ## 🤖 AI Agent 自动修改完成（支持多轮对话）
+          title: "🤖 AI Agent PR"
+          body: "Agent completed one iteration. Review and reply `@agent merge`."
 
-            **当前指令**
-            ```
-            ${{ github.event.comment.body }}
-            ```
-
-            **改动范围限制**
-            - ✅ src/
-            - ✅ tests/
-            - ✅ docs/
-            - ❌ .github/
-            - ❌ infra/
-            - ❌ scripts/
-
-            请 Review 👇
-
-      # 💬 Agent 主动回 Issue（像真人一样汇报）
-      - name: Comment back to Issue
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const body =
-              "🤖 **AI Agent 已完成一轮任务**\n\n" +
-              "- 🔀 PR 已创建 / 更新\n" +
-              `- 🌿 分支：${process.env.BRANCH}\n` +
-              "- 🧠 已读取历史对话上下文\n" +
-              "- 📦 改动已限制在指定目录\n\n" +
-              "👉 如需继续，请在本 Issue 中再次 @agent 下达指令";
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-      - name: Auto merge PR (on explicit command)
+      - name: Auto merge
         if: contains(github.event.comment.body, '@agent merge')
         uses: actions/github-script@v7
         with:
           script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const branch = process.env.BRANCH;
-
-            // 找当前 agent 分支对应的 PR
             const prs = await github.rest.pulls.list({
-              owner,
-              repo,
-              head: `${owner}:${branch}`,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: context.repo.owner + ":" + process.env.BRANCH,
               state: "open"
             });
 
-            if (prs.data.length === 0) {
-              core.setFailed("No open PR found to merge");
-              return;
+            if (prs.data.length) {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prs.data[0].number,
+                merge_method: "squash"
+              });
             }
-
-            const pr = prs.data[0];
-
-            await github.rest.pulls.merge({
-              owner,
-              repo,
-              pull_number: pr.number,
-              merge_method: "squash"
-            });
-
-            core.info(`Merged PR #${pr.number}`);
-
