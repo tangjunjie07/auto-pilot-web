@@ -76,42 +76,38 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           node <<'EOF'
-          const fs = require('fs');
-          const path = require('path');
-          const fetch = require('node-fetch');
-      
-          const prompt = process.env.AGENT_PROMPT || "生成HTML页面";
-      
-          async function generateHTML() {
+          const fs = require("fs");
+          const path = require("path");
+          const OpenAI = require("openai").default;
+
+          const prompt = process.env.AGENT_PROMPT || "生成 HTML 页面";
+          const filePath = path.join(process.cwd(), "docs", "main.html");
+
+          (async () => {
             try {
-              const res = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-                },
-                body: JSON.stringify({
-                  model: "gpt-5-nano",
-                  messages: [{ role: "user", content: prompt }],
-                  max_tokens: 2000
-                })
+              const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+              const res = await client.chat.completions.create({
+                model: "gpt-5-nano",
+                messages: [
+                  { role: "system", content: "你是网页生成 AI，根据用户指令生成完整 HTML 页面。" },
+                  { role: "user", content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 3000
               });
-      
-              const data = await res.json();
-              const html = data.choices?.[0]?.message?.content || "<h1>生成失败</h1>";
-      
-              const filePath = path.join(process.cwd(), "docs", "main.html");
+
+              const html = res.choices[0].message.content || "<h1>生成失败</h1>";
+              console.log("OpenAI generated HTML:", html);
+
               fs.mkdirSync(path.dirname(filePath), { recursive: true });
               fs.writeFileSync(filePath, html, "utf-8");
-      
               console.log("docs/main.html generated at", filePath);
             } catch (err) {
               console.error("生成 HTML 失败:", err);
               process.exit(1);
             }
-          }
-      
-          await generateHTML();  // ⚡ 必须 await
+          })();
           EOF
 
 
