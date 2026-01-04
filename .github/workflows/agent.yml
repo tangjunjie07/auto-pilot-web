@@ -90,6 +90,11 @@ jobs:
 
           fs.writeFileSync(filePath, html);
           console.log("docs/index.html generated at", filePath);
+
+          // ⚡ 新增：生成随机测试文件 test.txt，确保每次都有 diff
+          const testFile = path.join(process.cwd(), "docs", "test.txt");
+          fs.writeFileSync(testFile, `Random file content: ${Date.now()}-${Math.random()}`);
+          console.log("docs/test.txt generated at", testFile);
           EOF
           
       - name: Commit changes
