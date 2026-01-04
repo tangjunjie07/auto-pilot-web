@@ -6,7 +6,6 @@ on:
 
 jobs:
   agent:
-    if: contains(github.event.comment.body, '@agent')
     runs-on: ubuntu-latest
 
     permissions:
@@ -29,10 +28,16 @@ jobs:
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           git checkout -B "$BRANCH"
 
-      - name: Install dependencies
-        run: npm install node-fetch@3
+      - name: Check for @agent
+        run: |
+          if [[ "${{ github.event.comment.body }}" != *"@agent"* ]]; then
+            echo "No @agent found, skipping."
+            exit 0
+          fi
 
-      # 🧠 构建多轮 Prompt
+      - name: Install dependencies
+        run: npm install node-fetch@2
+
       - name: Build conversation prompt
         id: prompt
         uses: actions/github-script@v7
@@ -69,8 +74,7 @@ jobs:
 
             core.setOutput("prompt", prompt);
 
-      # 🤖 AI Agent (Anthropic + HTML + PR)
-      - name: Run Inline Agent
+      - name: Run Inline Agent (Anthropic)
         env:
           AGENT_PROMPT: ${{ steps.prompt.outputs.prompt }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -79,13 +83,12 @@ jobs:
           const fs = require('fs');
           const path = require('path');
           const fetch = require('node-fetch');
-      
-          // 读取 AI 指令
+
           const prompt = process.env.AGENT_PROMPT || "生成HTML页面";
-      
+
           async function generateHTML() {
             try {
-              const response = await fetch("https://api.anthropic.com/v1/complete", {
+              const res = await fetch("https://api.anthropic.com/v1/complete", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -94,35 +97,37 @@ jobs:
                 body: JSON.stringify({
                   model: "claude-v1",
                   prompt: `\n\nHuman: ${prompt}\n\nAssistant:`,
-                  max_tokens_to_sample: 2000,
+                  max_tokens_to_sample: 4000,
                   stop_sequences: ["\nHuman:"]
                 })
               });
-      
-              const data = await response.json();
+
+              const data = await res.json();
+              console.log("Anthropic response:", data);
+
               const html = data.completion || "<h1>生成失败</h1>";
-      
-              // 写入 main.html
+
               const filePath = path.join(process.cwd(), "docs", "main.html");
               fs.mkdirSync(path.dirname(filePath), { recursive: true });
               fs.writeFileSync(filePath, html);
-      
+
               console.log("docs/main.html generated at", filePath);
             } catch (err) {
               console.error("生成 HTML 失败:", err);
               process.exit(1);
             }
           }
-      
+
           generateHTML();
           EOF
-          
+
       - name: Commit changes
         run: |
           git config user.name "AI Agent"
           git config user.email "agent@github.com"
+          git add docs/main.html
           git commit -m "AI Agent: create/update docs/main.html" || \
-          git commit --allow-empty -m "AI Agent: force update docs/main.html"  # ⚡ 保证 commit 即使内容没变化
+          git commit --allow-empty -m "AI Agent: force update docs/main.html"
 
       - name: Push branch
         run: git push origin "$BRANCH" --force
@@ -137,7 +142,18 @@ jobs:
           body: |
             Agent completed one iteration.
             Review and reply `@agent merge`.
-          commit-message: "[create-pull-request] automated change"  # ⚡ 移除了 allow-no-changes，改为 commit-message 保证兼容 v7
+          commit-message: "[create-pull-request] automated change"
+
+      - name: Reply to issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "✅ HTML 页面已生成并提交 PR: #${{ steps.prompt.outputs.issue_number || github.event.issue.number }}"
+            });
 
       - name: Auto merge
         if: contains(github.event.comment.body, '@agent merge')
@@ -150,7 +166,6 @@ jobs:
               head: context.repo.owner + ":" + process.env.BRANCH,
               state: "open"
             });
-
             if (prs.data.length) {
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
