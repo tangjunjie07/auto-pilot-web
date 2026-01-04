@@ -82,6 +82,7 @@ jobs:
 
           const prompt = process.env.AGENT_PROMPT || "生成 HTML 页面";
           const filePath = path.join(process.cwd(), "docs", "main.html");
+          const branch = `agent/issue-${process.env.BRANCH}`;
 
           (async () => {
             try {
@@ -98,35 +99,32 @@ jobs:
               });
 
               const html = res.choices[0].message.content || "<h1>生成失败</h1>";
+              // 🟢 只提取 ```html ... ``` 中的内容
+              const match = html.match(/```html\s*([\s\S]*?)```/i);
+              if (match) {
+                html = match[1].trim();
+              }
               console.log("OpenAI generated HTML:", html);
 
               fs.mkdirSync(path.dirname(filePath), { recursive: true });
               fs.writeFileSync(filePath, html, "utf-8");
               console.log("docs/main.html generated at", filePath);
+
+              // Git 提交 HTML 文件
+              execSync('git config user.name "AI Agent"');
+              execSync('git config user.email "agent@github.com"');
+              execSync(`git add ${filePath}`);
+              const status = execSync('git status --short').toString().trim();
+              console.log("Git status after add:\n", status);
+              execSync(`git commit -m "AI Agent: create/update docs/main.html" --allow-empty`);
+              execSync(`git push origin ${branch} --force`);
+              console.log("✅ HTML 文件已提交到分支:", branch);
             } catch (err) {
               console.error("生成 HTML 失败:", err);
               process.exit(1);
             }
           })();
           EOF
-
-
-      - name: Commit changes
-        run: |
-          git config user.name "AI Agent"
-          git config user.email "agent@github.com"
-          git add docs/main.html
-          git status  # ⚡ 可加调试 step 查看
-          git commit -m "AI Agent: create/update docs/main.html" || \
-          git commit --allow-empty -m "AI Agent: force update docs/main.html"
-          
-      - name: Debug generated files
-        run: |
-          echo "PWD: $(pwd)"
-          ls -R docs
-
-      - name: Push branch
-        run: git push origin "$BRANCH" --force
 
       - name: Create or Update Pull Request
         uses: peter-evans/create-pull-request@v7
