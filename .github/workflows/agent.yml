@@ -120,6 +120,10 @@ jobs:
         run: |
           git push origin "$BRANCH" --force
 
+      - name: List remote branches
+        run: git ls-remote
+
+
       - name: Create or Update Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
