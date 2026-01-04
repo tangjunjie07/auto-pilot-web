@@ -74,7 +74,7 @@ jobs:
           node <<'EOF'
           const fs = require("fs");
           const path = require("path");
-          const filePath = path.join(process.cwd(), "docs", "index.html");
+          const filePath = path.join(process.cwd(), "docs", "main.html");
           fs.mkdirSync(path.dirname(filePath), { recursive: true });
           const html = `<!doctype html>
           <html lang="en">
@@ -89,7 +89,7 @@ jobs:
           </html>`;
 
           fs.writeFileSync(filePath, html);
-          console.log("docs/index.html generated at", filePath);
+          console.log("docs/main.html generated at", filePath);
 
           // ⚡ 新增：生成随机测试文件 test.txt，确保每次都有 diff
           const testFile = path.join(process.cwd(), "docs", "test.txt");
@@ -101,9 +101,8 @@ jobs:
         run: |
           git config user.name "AI Agent"
           git config user.email "agent@github.com"
-          git add docs/index.html
-          git commit -m "AI Agent: create/update docs/index.html" || \
-          git commit --allow-empty -m "AI Agent: force update docs/index.html"  # ⚡ 保证 commit 即使内容没变化
+          git commit -m "AI Agent: create/update docs/main.html" || \
+          git commit --allow-empty -m "AI Agent: force update docs/main.html"  # ⚡ 保证 commit 即使内容没变化
 
       - name: Push branch
         run: git push origin "$BRANCH" --force
