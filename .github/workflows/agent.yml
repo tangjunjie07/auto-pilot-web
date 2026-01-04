@@ -98,7 +98,7 @@ jobs:
                 max_tokens: 3000
               });
 
-              const html = res.choices[0].message.content || "<h1>生成失败</h1>";
+              let html = res.choices[0].message.content || "<h1>生成失败</h1>";
               // 🟢 只提取 ```html ... ``` 中的内容
               const match = html.match(/```html\s*([\s\S]*?)```/i);
               if (match) {
