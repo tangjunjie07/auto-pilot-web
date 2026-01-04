@@ -66,6 +66,10 @@ jobs:
 
             core.setOutput("prompt", prompt);
 
+      - name: Install dependencies
+        run: npm install node-fetch@3
+
+
       # 🤖 AI Agent (Anthropic + HTML + PR)
       - name: Run Inline Agent
         env:
