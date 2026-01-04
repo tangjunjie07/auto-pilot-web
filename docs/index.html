@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>虚构加密货币公司</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .hero {
+            text-align: center;
+            padding: 80px 20px;
+        }
+        .hero h1 {
+            font-size: 2.5em;
+            margin: 0;
+        }
+        .hero p {
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+        .button {
+            background-color: #ffcc00;
+            color: #1a1a1a;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            text-decoration: none;
+        }
+        .cards {
+            display: flex;
+            justify-content: space-around;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+        .card {
+            background-color: #2a2a2a;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px;
+            flex: 1 1 calc(30% - 20px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .card h3 {
+            margin-top: 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px 0;
+            border-top: 1px solid #333;
+            margin-top: 40px;
+        }
+        @media (max-width: 768px) {
+            .cards {
+                flex-direction: column;
+                align-items: center;
+            }
+            .card {
+                flex: 1 1 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>虚构加密货币公司</h1>
+            <p>引领区块链与加密金融的未来</p>
+            <a href="#services" class="button">Get Started</a>
+        </div>
+
+        <div class="cards" id="services">
+            <div class="card">
+                <h3>DeFi</h3>
+                <p>去中心化金融是未来金融的核心，提供更开放和透明的金融服务。</p>
+            </div>
+            <div class="card">
+                <h3>Security</h3>
+                <p>我们的平台采用先进的安全技术，确保您的资产安全无忧。</p>
+            </div>
+            <div class="card">
+                <h3>Infrastructure</h3>
+                <p>强大的基础设施支持高效的交易和资产管理，助力您的投资。</p>
+            </div>
+        </div>
+
+        <div class="hero">
+            <h2>技术优势</h2>
+            <ul>
+                <li>高性能</li>
+                <li>安全</li>
+                <li>可扩展</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>虚构加密货币公司</p>
+            <p>© 2023 所有权利保留</p>
+        </div>
+    </div>
+</body>
+</html>
