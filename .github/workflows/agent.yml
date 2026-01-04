@@ -150,15 +150,19 @@ jobs:
               body: "✅ HTML 页面已生成并提交 PR: #${{ github.event.issue.number }}"
             });
 
-      - name: Auto merge
-        if: contains(github.event.comment.body, '@agent merge')
+  auto-merge:
+    if: contains(github.event.comment.body, '@agent merge')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Merge PR
         uses: actions/github-script@v7
         with:
           script: |
             const prs = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              head: context.repo.owner + ":" + process.env.BRANCH,
+              head: context.repo.owner + ":" + "agent/issue-" + context.issue.number,
               state: "open"
             });
             if (prs.data.length) {
@@ -168,4 +172,6 @@ jobs:
                 pull_number: prs.data[0].number,
                 merge_method: "squash"
               });
+              console.log("PR 已 merge");
             }
+
