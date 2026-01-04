@@ -72,16 +72,12 @@ jobs:
           AGENT_PROMPT: ${{ steps.prompt.outputs.prompt }}
         run: |
           node <<'EOF'
-          import fs from "fs";
-
-          const prompt = process.env.AGENT_PROMPT || "";
-
-          console.log("Agent triggered, generating docs/index.html");
-
+          const fs = require("fs");
+          const path = "docs/index.html";
           fs.mkdirSync("docs", { recursive: true });
           
           fs.writeFileSync(
-            "docs/index.html",
+            path,
             "<!doctype html>\n" +
             "<html lang=\"en\">\n" +
             "<head>\n" +
@@ -104,22 +100,21 @@ jobs:
             "</body>\n" +
             "</html>\n"
           );
-
-          console.log("docs/index.html generated");
           EOF
           
       # 🔍 调试（非常重要）
-      - name: Debug git status
+      - name: Debug docs
         run: |
-          git status
-          git diff --stat
+          echo "PWD: $(pwd)"
+          ls -l docs
+          cat docs/index.html
           
       - name: Commit changes
         run: |
           git config user.name "AI Agent"
           git config user.email "agent@github.com"
           git add docs/index.html
-          git commit -m "AI Agent: update docs/index.html" || exit 0
+          git commit -m "AI Agent: create/update docs/index.html"
 
       - name: Push branch
         run: |
