@@ -83,7 +83,7 @@ jobs:
 
           const prompt = process.env.AGENT_PROMPT || "生成 HTML 页面";
           const filePath = path.join(process.cwd(), "docs", "main.html");
-          const branch = `agent/issue-${process.env.BRANCH}`;
+          const branch = process.env.BRANCH;
 
           (async () => {
             try {
