@@ -132,3 +132,30 @@ jobs:
               repo: context.repo.repo,
               body
             });
+      - name: Auto merge PR (safe)
+        if: contains(github.event.comment.body, '@agent merge')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${process.env.BRANCH}`,
+              state: "open"
+            });
+
+            if (prs.data.length === 0) {
+              core.setFailed("No open PR found");
+              return;
+            }
+
+            const pr = prs.data[0];
+
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              merge_method: "squash"
+            });
+
+            core.info(`Merged PR #${pr.number}`);
